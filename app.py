@@ -1,3 +1,6 @@
+import os
+import json
+import tempfile
 from fastapi import FastAPI, HTTPException
 from google.cloud import bigquery
 from google.oauth2 import service_account
@@ -5,9 +8,15 @@ from typing import Dict, Any
 
 app = FastAPI(title="BigQuery API", description="BigQuery Cost API")
 
-credentials = service_account.Credentials.from_service_account_file(
-    "meyra-service-account-key.json"
-)
+creds_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+
+
+with tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".json") as tmp:
+    tmp.write(creds_json)
+    tmp.flush()
+    creds_path = tmp.name
+
+credentials = service_account.Credentials.from_service_account_file(creds_path)
 client = bigquery.Client(credentials=credentials, project=credentials.project_id)
 
 COST_QUERY = """
