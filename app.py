@@ -1,14 +1,15 @@
 import os
 import json
 import tempfile
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from google.cloud import bigquery
 from google.oauth2 import service_account
-from typing import Dict, Any
+from typing import Dict, Any, Annotated
 
 app = FastAPI(title="BigQuery API", description="BigQuery Cost API")
 
 creds_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+API_TOKEN = os.environ.get("API_TOKEN")
 
 
 with tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".json") as tmp:
@@ -28,8 +29,13 @@ AND  TIMESTAMP(DATETIME(DATE_ADD(CURRENT_DATE("Europe/Istanbul"), INTERVAL 1 DAY
 """
 
 @app.get("/api/getCost", response_model=Dict[str, Any])
-async def get_cost():
+async def get_cost(x_api_token: Annotated[str | None, Header()] = None):
   
+    if not API_TOKEN:
+        raise HTTPException(status_code=500, detail="API Token environment variable not set.")
+    if not x_api_token or x_api_token != API_TOKEN:
+        raise HTTPException(status_code=401, detail="Invalid API Token")
+
     try:
         query_job = client.query(COST_QUERY, timeout=60)
         results = query_job.result()
